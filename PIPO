@@ -1,0 +1,33 @@
+module PIPO(input clk, input clr, input [7:0] d, output reg [7:0] q);
+always @(posedge clk) begin
+if (clr) begin
+q<= 8'b0;
+end
+else begin
+q <= d;
+end
+end
+endmodule
+
+module PIPO_TOP(input clk, input clr, input [7:0] d, output [7:0] q);
+wire slowclk;
+clkdivider T1(clk,clr,slowclk);
+PIPO T2(slowclk, clr,d,q);
+endmodule
+
+module clkdivider(
+    input clk,
+    input clr,
+    output slowclk
+);
+    reg [24:0] count;
+
+    always @(posedge clk) begin
+        if (clr)
+            count <= 0;
+        else
+            count <= count + 1;
+    end
+
+    assign slowclk = count[24];
+endmodule
