@@ -1,0 +1,253 @@
+                                                                          // SINGLE PORT ROM
+
+module single_port_rom(clk,addr,data_out,en);
+input clk, en;
+input [2:0] addr;
+output reg [7:0] data_out;
+reg [7:0] mem [0:7];
+initial begin
+data_out = 8'b0;
+end
+always @(addr)
+case (addr)
+3'b000 : mem[addr] = 8'b00000001;
+3'b001 : mem[addr] = 8'b00000010;
+3'b010 : mem[addr] = 8'b00000011;
+3'b011 : mem[addr] = 8'b00000100;
+3'b100 : mem[addr] = 8'b00000101;
+3'b101 : mem[addr] = 8'b00000110;
+3'b110 : mem[addr] = 8'b00000111;
+3'b111 : mem[addr] = 8'b00010000;
+default : mem[addr] = 8'b00000000;
+endcase
+always @(posedge clk)
+begin if(en)
+begin
+data_out <= mem[addr];
+end
+else
+data_out <= data_out;
+end
+endmodule
+
+
+                                                                            // SINGLE PORT ROM TOP MODULE
+
+module single_port_rom_top(input clk, input clr,input [2:0] addr, input en, output [7:0] data_out);
+wire slowclk;
+clkdivider T1(clk,clr,slowclk);
+single_port_rom T2(slowclk, addr,data_out,en);
+endmodule
+
+
+
+                                                                            //SINGLE PORT ROM CLOCK DIVIDER
+
+
+
+module clkdivider(
+    input clk,
+    input clr,
+    output slowclk
+);
+    reg [24:0] count;
+
+    always @(posedge clk) begin
+        if (clr)
+            count <= 0;
+        else
+            count <= count + 1;
+    end
+
+    assign slowclk = count[24];
+endmodule
+
+
+
+
+                                                                                    //SINGLE PORT RAM 
+
+
+
+
+module single_port_sync_ram
+  # (parameter ADDR_WIDTH = 4,
+     parameter DATA_WIDTH = 32,
+     parameter DEPTH = 16
+    )
+
+  ( 	input 					clk,
+   		input [ADDR_WIDTH-1:0]	addr,
+   		inout [DATA_WIDTH-1:0]	data,
+   		input 					cs,
+   		input 					we,
+   		input 					oe
+  );
+
+  reg [DATA_WIDTH-1:0] 	tmp_data;
+  reg [DATA_WIDTH-1:0] 	mem [DEPTH];
+
+  always @ (posedge clk) begin
+    if (cs & we)
+      mem[addr] <= data;
+  end
+
+  always @ (posedge clk) begin
+    if (cs & !we)
+    	tmp_data <= mem[addr];
+  end
+
+  assign data = cs & oe & !wr ? tmp_data : 'hz;
+endmodule
+
+                                                                                            //SINGLE PORT RAM TESTBENCH
+
+module tb;
+  parameter ADDR_WIDTH = 4;
+  parameter DATA_WIDTH = 16;
+  parameter DEPTH = 16;
+
+  reg clk;
+  reg cs;
+  reg we;
+  reg oe;
+  reg [ADDR_WIDTH-1:0] addr;
+  wire [DATA_WIDTH-1:0] data;
+  reg [DATA_WIDTH-1:0] tb_data;
+
+  single_port_sync_ram #(.DATA_WIDTH(DATA_WIDTH)) u0
+  ( 	.clk(clk),
+                        	.addr(addr),
+                        	.data(data),
+                        	.cs(cs),
+   							.we(we),
+   							.oe(oe)
+                         );
+
+
+  always #10 clk = ~clk;
+  assign data = !oe ? tb_data : 'hz;
+
+  initial begin
+    {clk, cs, we, addr, tb_data, oe} <= 0;
+
+    repeat (2) @ (posedge clk);
+
+    for (integer i = 0; i < 2**ADDR_WIDTH; i= i+1) begin
+      repeat (1) @(posedge clk) addr <= i; we <= 1; cs <=1; oe <= 0; tb_data <= $random;
+    end
+
+    for (integer i = 0; i < 2**ADDR_WIDTH; i= i+1) begin
+      repeat (1) @(posedge clk) addr <= i; we <= 0; cs <= 1; oe <= 1;
+    end
+
+    #20 $finish;
+  end
+endmodule
+
+
+                                                                                  // SINGLE PORT RAM TOP CLOCK DIVIDER
+
+
+module clock_divider
+  #(parameter DIV_FACTOR = 50_000_000) // Divide 50MHz to 1Hz for testing
+  (
+    input clk_in,
+    input reset,
+    output reg clk_div
+  );
+
+  reg [$clog2(DIV_FACTOR)-1:0] counter;
+
+  always @(posedge clk_in or posedge reset) begin
+    if (reset) begin
+      counter <= 0;
+      clk_div <= 0;
+    end else if (counter == DIV_FACTOR-1) begin
+      counter <= 0;
+      clk_div <= ~clk_div; // Toggle the clock
+    end else begin
+      counter <= counter + 1;
+    end
+  end
+endmodule
+
+
+
+                                                                              //SINGLE PORT RAM TOP MODULE
+
+
+module top_single_port_ram
+  #(parameter ADDR_WIDTH = 4,
+    parameter DATA_WIDTH = 16,
+    parameter DEPTH = 16)
+  (
+    input clk,      // FPGA clock
+    input reset,    // Reset signal
+    output [DATA_WIDTH-1:0] led  // For debugging or output observation
+  );
+
+  wire clk_div; // Slower clock for RAM operations
+  wire [DATA_WIDTH-1:0] data;
+  reg cs, we, oe;
+  reg [ADDR_WIDTH-1:0] addr;
+  reg [DATA_WIDTH-1:0] tb_data;
+  reg [DATA_WIDTH-1:0] debug_data;
+
+  // Instantiate clock divider
+  clock_divider #(.DIV_FACTOR(50_000_000)) clk_div_inst (
+    .clk_in(clk),
+    .reset(reset),
+    .clk_div(clk_div)
+  );
+
+  // Instantiate RAM module
+  single_port_sync_ram #(
+    .ADDR_WIDTH(ADDR_WIDTH),
+    .DATA_WIDTH(DATA_WIDTH),
+    .DEPTH(DEPTH)
+  ) ram_inst (
+    .clk(clk_div),
+    .addr(addr),
+    .data(data),
+    .cs(cs),
+    .we(we),
+    .oe(oe)
+  );
+
+  // Behavioral logic for testing
+  assign data = !oe ? tb_data : 'hz;
+
+  always @(posedge clk_div or posedge reset) begin
+    if (reset) begin
+      addr <= 0;
+      cs <= 0;
+      we <= 0;
+      oe <= 0;
+      tb_data <= 0;
+      debug_data <= 0;
+    end else begin
+      // Write operation
+      if (addr < DEPTH) begin
+        addr <= addr + 1;
+        cs <= 1;
+        we <= 1;
+        oe <= 0;
+        tb_data <= addr + 1; // Example data pattern
+      end else if (addr < 2*DEPTH) begin
+        // Read operation
+        addr <= addr + 1;
+        cs <= 1;
+        we <= 0;
+        oe <= 1;
+        debug_data <= data; // Capture read data
+      end else begin
+        addr <= 0;
+      end
+    end
+  end
+
+  assign led = debug_data; // Display output for debugging
+
+endmodule
+
