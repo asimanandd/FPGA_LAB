@@ -1,0 +1,25 @@
+module ADD_2DIGIT_DEC(num1,num2,sum);
+ input [7:0] num1; // 2-digit 4-bit BCD number (xx)
+    input [7:0] num2; // 2-digit 4-bit BCD number (xx)
+    output [7:0] sum; // 2-digit 4-bit BCD sum (xx)
+wire [3:0] ones_sum; // sum of ones digits
+wire [3:0] tens_sum; // sum of tens digits
+wire ones_carry; // carry from ones digit addition
+wire tens_carry; // carry from tens digit addition
+
+// add ones digits
+wire [3:0] ones_binary_sum = num1[3:0] + num2[3:0];
+wire ones_greater_than_9 = ones_binary_sum[3] || (ones_binary_sum[2:0] > 3'b100);
+assign ones_sum = (ones_greater_than_9) ? (ones_binary_sum + 4'b0110) : ones_binary_sum;
+assign ones_carry = ones_greater_than_9;
+
+// add tens digits
+wire [3:0] tens_binary_sum = num1[7:4] + num2[7:4] + {3'b000, ones_carry};
+wire tens_greater_than_9 = tens_binary_sum[3] || (tens_binary_sum[2:0] > 3'b100);
+assign tens_sum = (tens_greater_than_9) ? (tens_binary_sum + 4'b0110) : tens_binary_sum;
+assign tens_carry = tens_greater_than_9;
+
+// assign sum
+assign sum = {tens_sum, ones_sum};
+
+endmodule
