@@ -1,0 +1,96 @@
+                                                                                //SEQUENCE DETECTOR
+
+module mealy_sequence_detector(
+    input clk,
+    input rst,
+    input x,
+    output reg z
+);
+    parameter [1:0] S0 = 2'b00, S1 = 2'b01, S2 = 2'b10, S3 = 2'b11;
+    reg [1:0] present_st, next_st;
+    reg z_next;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            present_st <= S0;
+            z <= 1'b0;
+        end else begin
+            present_st <= next_st;
+            z <= z_next;
+        end
+    end
+
+    always @(present_st or x) begin
+        case (present_st)
+            S0: begin
+                if (x) begin
+                    next_st <= S1;
+                end else begin
+                    next_st <= S0;
+                end
+                z_next = 1'b0;
+            end
+           
+            S1: begin
+                if (x) begin
+                    next_st <= S1;
+                end else begin
+                    next_st <= S2;
+                end
+                z_next = 1'b0;
+            end
+           
+            S2: begin
+                if (x) begin
+                    next_st <= S3;
+                    z_next = 1'b1;
+                end else begin
+                    next_st <= S0;
+                    z_next = 1'b0;
+                end
+            end
+           
+            S3: begin
+                if (x) begin
+                    next_st <= S1;
+                end else begin
+                    next_st <= S0;
+                end
+                z_next = 1'b0;
+            end
+        endcase
+    end
+endmodule
+
+
+
+
+                                                              // SEQUENCE DETECTOR CLOCK DIVIDER
+
+module clkdivider(
+    input clk,
+    input clr,
+    output slowclk
+);
+    reg [24:0] count;
+
+    always @(posedge clk) begin
+        if (clr)
+            count <= 0;
+        else
+            count <= count + 1;
+    end
+
+    assign slowclk = count[24];
+endmodule
+
+
+
+                                                                  //SEQUENCE DETECTOR TOP MODULE
+
+
+module password_top(input clk, input clr, input rst, input set_password, input verify_password, input [7:0] entered_password,output pass_verified, output pass_set);
+wire slowclk;
+clkdivider T1(clk,clr,slowclk);
+password T2(slowclk, rst, set_password, verify_password, entered_password, pass_verified, pass_set);
+endmodule
