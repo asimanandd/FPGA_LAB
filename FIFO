@@ -1,0 +1,73 @@
+//FIFO CODE
+module fifo_sync #(parameter DEPTH=8, DATA_WIDTH=8)(
+    input clk,
+    input rst,
+    input w_en,
+    input r_en,
+    input [DATA_WIDTH-1:0] data_in,
+    output reg [DATA_WIDTH-1:0] data_out,
+    output empty,
+    output full
+);
+
+  reg [$clog2(DEPTH)-1:0] w_ptr, r_ptr;
+  reg [DATA_WIDTH-1:0] fifo[DEPTH-1:0];  
+  always@(posedge clk) begin
+  if (!rst) begin
+if (w_en & !full) begin
+      fifo[w_ptr] <= data_in;
+      w_ptr <= (w_ptr + 1) ;            
+   end
+else if (r_en & !empty) begin
+      data_out <= fifo[r_ptr];                
+      r_ptr <= (r_ptr + 1) ;  
+end
+end
+  else  begin
+w_ptr <= 0;
+r_ptr <= 0;
+data_out <= 0;
+  end
+end
+assign full = ((w_ptr + 1'b1) == r_ptr);
+assign empty = (w_ptr == r_ptr);
+endmodule
+
+//FIFO CLOCK DIVIDER
+
+module clkdivider(
+    input clk,
+    input clr,
+    output slowclk
+);
+    reg [24:0] count;
+
+    always @(posedge clk) begin
+        if (clr)
+            count <= 0;
+        else
+            count <= count + 1;
+    end
+
+    assign slowclk = count[24];
+endmodule
+
+
+//FIFO TOP MODULE
+
+
+module fifo_sync_top#(parameter DEPTH=8, DATA_WIDTH=8)(
+input clk,
+    input rst,
+    input clr,
+    input w_en,
+    input r_en,
+    input [DATA_WIDTH-1:0] data_in,
+    output [DATA_WIDTH-1:0] data_out,
+    output empty,
+    output full
+);
+wire slowclk;
+clkdivider T1(clk,clr,slowclk);
+fifo_sync T2(slowclk, rst, w_en, r_en, data_in, data_out,empty, full);
+endmodule
