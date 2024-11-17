@@ -1,0 +1,49 @@
+module BCD_ADDER(A,B,seg0, seg1);
+input [3:0] A,B;
+output reg [6:0] seg0, seg1;
+wire [3:0] dig0, dig1;
+reg [4:0] S;
+
+assign dig0 = S[3:0];
+assign dig1 = {3'b000, S[4]};
+always @(A,B)
+begin
+S = A + B;
+if (S > 5'd9)
+S = S + 4'd0110;
+else
+S = S + 4'd0;
+end
+always @(dig0)
+begin
+    case (dig0)
+            0 : seg0 = 7'b100_0000;
+            1 : seg0 = 7'b111_1001;
+            2 : seg0 = 7'b010_0100;
+            3 : seg0 = 7'b011_0000;
+            4 : seg0 = 7'b001_1001;
+            5 : seg0 = 7'b001_0010;
+            6 : seg0 = 7'b000_0010;
+            7 : seg0 = 7'b111_1000;
+            8 : seg0 = 7'b000_0000;
+            9 : seg0 = 7'b001_0000;
+            default : seg0 = 7'b111_1111;
+    endcase
+end
+always @(dig1)
+begin
+    case (dig1)
+            0 : seg1 = 7'b100_0000;
+            1 : seg1 = 7'b111_1001;
+            2 : seg1 = 7'b010_0100;
+            3 : seg1 = 7'b011_0000;
+            4 : seg1 = 7'b001_1001;
+            5 : seg1 = 7'b001_0010;
+            6 : seg1 = 7'b000_0010;
+            7 : seg1 = 7'b111_1000;
+            8 : seg1 = 7'b000_0000;
+            9 : seg1 = 7'b001_0000;
+            default : seg1 = 7'b111_1111;
+    endcase
+end
+endmodule
