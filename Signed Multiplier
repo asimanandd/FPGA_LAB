@@ -1,0 +1,40 @@
+module signed_mul(out, clk, a, b);
+output [15:0] out;
+input clk;
+input signed [7:0] a;
+input signed [7:0] b;
+reg signed [7:0] a_reg;
+reg signed [7:0] b_reg;
+reg signed [15:0] out;
+wire signed [15:0] mult_out;
+assign mult_out = a_reg * b_reg;
+always@(posedge clk)
+begin
+a_reg <= a;
+b_reg <= b;
+out <= mult_out;
+end
+endmodule
+
+module signed_mul_top(input clk, input clr,input [7:0] a,input [7:0] b, output [15:0] out);
+wire slowclk;
+clkdivider T1(clk,clr,slowclk);
+signed_mul T2(out, slowclk, a, b);
+endmodule
+
+module clkdivider(
+    input clk,
+    input clr,
+    output slowclk
+);
+    reg [24:0] count;
+
+    always @(posedge clk) begin
+        if (clr)
+            count <= 0;
+        else
+            count <= count + 1;
+    end
+
+    assign slowclk = count[24];
+endmodule
